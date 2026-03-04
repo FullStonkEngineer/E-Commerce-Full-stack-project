@@ -9,20 +9,27 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const OrderSummary = () => {
   const { total, subtotal, coupon, isCouponApplied, cart } = useCartStore();
-  const savings = total - subtotal;
+  const savings = subtotal - total;
   const formattedSubtotal = subtotal.toFixed(2);
   const formattedTotal = total.toFixed(2);
   const formattedSavings = savings.toFixed(2);
 
   const handlePayment = async () => {
-    const res = await axios.post("/payments/create-checkout-session", {
-      products: cart,
-      couponCode: coupon ? coupon.code : null,
-    });
+    try {
+      const res = await axios.post("/payments/create-checkout-session", {
+        products: cart.map((item) => ({
+          _id: item._id,
+          quantity: item.quantity,
+        })),
+        couponCode: coupon ? coupon.code : null,
+      });
 
-    const stripe = await stripePromise;
-    console.log("session:", res.data.url);
-    window.location.href = res.data.url;
+      const stripe = await stripePromise;
+      console.log("session:", res.data.url);
+      window.location.href = res.data.url;
+    } catch (error) {
+      toast.error("Failed to create checkout session");
+    }
   };
 
   return (

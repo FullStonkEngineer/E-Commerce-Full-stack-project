@@ -36,7 +36,7 @@ const HomePage = () => {
           ))}
         </div>
 
-        <FeaturedProducts featuredProducts={products} />
+        <FeaturedProducts featuredProducts={products} loading={loading} />
       </div>
     </div>
   );

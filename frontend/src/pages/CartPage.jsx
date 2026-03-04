@@ -6,9 +6,19 @@ import PeopleAlsoBought from "../components/PeopleAlsoBought";
 import CartItem from "../components/CartItem";
 import OrderSummary from "../components/OrderSummary";
 import GiftCouponCard from "../components/GiftCouponCard";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const CartPage = () => {
-  const { cart } = useCartStore();
+  const { cart, loading } = useCartStore();
+
+  const hasItems = cart.length > 0;
+
+  if (loading)
+    return (
+      <div className='text-center py-10'>
+        <LoadingSpinner />
+      </div>
+    );
 
   return (
     <div className='py-8 md:py-16'>
@@ -29,10 +39,10 @@ const CartPage = () => {
                 ))}
               </div>
             )}
-            {cart.length > 0 && <PeopleAlsoBought />}
+            {hasItems && <PeopleAlsoBought />}
           </motion.div>
 
-          {cart.length > 0 && (
+          {hasItems && (
             <motion.div
               className='mx-auto mt-6 max-w-4xl flex-1 space-y-6 lg:mt-0 lg:w-full'
               initial={{ opacity: 0, x: 20 }}

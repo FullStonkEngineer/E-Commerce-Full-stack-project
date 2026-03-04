@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useCartStore } from "../stores/useCartStore";
+import { toast } from "react-hot-toast";
 
 const GiftCouponCard = () => {
   const { coupon, isCouponApplied, applyCoupon, getMyCoupon, removeCoupon } =
@@ -17,8 +18,10 @@ const GiftCouponCard = () => {
   }, [coupon]);
 
   const handleApplyCoupon = () => {
-    if (!userInputCode) {
+    if (userInputCode) {
       applyCoupon(userInputCode);
+    } else {
+      toast.error("Please enter a coupon code");
     }
   };
 
@@ -61,6 +64,7 @@ const GiftCouponCard = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleApplyCoupon}
+          disabled={isCouponApplied && userInputCode === coupon?.code}
         >
           Apply Code
         </motion.button>

@@ -7,20 +7,30 @@ export const getAnalytics = async (req, res) => {
     const analyticsData = await getAnalyticsData();
 
     const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+    endDate.setHours(23, 59, 59, 999);
+
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - 6);
+    startDate.setHours(0, 0, 0, 0);
 
     const dailySalesData = await getDailySalesData(startDate, endDate);
 
     res.json({ analyticsData, dailySalesData });
-  } catch (error) {}
+  } catch (error) {
+    console.error("Analytics fetch error:", error);
+    res.status(500).json({
+      message: "Unable to fetch analytics data, please try again later",
+    });
+  }
 };
 
-async function getAnalyticsData() {
-  try {
-    const totalUsers = await User.countDocuments();
-    const totalProducts = await Product.countDocuments();
+// TODO: Justify tradeoff between count documents and estimated document count
 
-    const salesData = await Order.aggregate([
+async function getAnalyticsData() {
+  const [totalUsers, totalProducts, salesData] = await Promise.all([
+    User.countDocuments(),
+    Product.countDocuments(),
+    Order.aggregate([
       {
         $group: {
           _id: null,
@@ -28,74 +38,69 @@ async function getAnalyticsData() {
           totalRevenue: { $sum: "$totalAmount" },
         },
       },
-    ]);
+    ]),
+  ]);
 
-    const { totalSales, totalRevenue } = salesData[0] || {
-      totalSales: 0,
-      totalRevenue: 0,
-    };
+  const { totalSales, totalRevenue } = salesData[0] || {
+    totalSales: 0,
+    totalRevenue: 0,
+  };
 
-    return {
-      users: totalUsers,
-      products: totalProducts,
-      totalSales,
-      totalRevenue,
-    };
-  } catch (error) {
-    console.log("Error in getting analytics data:", error.message);
-    throw error;
-  }
+  return {
+    users: totalUsers,
+    products: totalProducts,
+    totalSales,
+    totalRevenue,
+  };
 }
 
 async function getDailySalesData(startDate, endDate) {
-  try {
-    const dailySalesData = await Order.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: startDate, $lte: endDate },
+  const dailySalesData = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: {
+            format: "%Y-%m-%d",
+            date: "$createdAt",
+            timezone: "UTC",
+          },
         },
+        sales: { $sum: 1 },
+        revenue: { $sum: "$totalAmount" },
       },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          totalSales: { $sum: 1 },
-          totalRevenue: { $sum: "$totalAmount" },
-        },
-      },
-      {
-        $sort: { _id: 1 },
-      },
-    ]);
+    },
+    { $sort: { _id: 1 } },
+  ]);
 
-    const dateArray = getDatesInRange(startDate, endDate);
+  const dateArray = getDatesInRange(startDate, endDate);
 
-    console.log(dateArray);
-    return dateArray.map((date) => {
-      const foundData = dailySalesData.find((item) => item._id === date);
+  const salesMap = new Map(dailySalesData.map((item) => [item._id, item]));
 
-      return {
-        date,
-        sales: foundData?.sales || 0,
-        revenue: foundData?.revenue || 0,
-      };
-    });
-  } catch (error) {
-    console.log("Error in getting daily sales data:", error.message);
-    throw error;
-  }
+  return dateArray.map((date) => {
+    const foundData = salesMap.get(date);
+
+    return {
+      name: date,
+      date,
+      sales: foundData?.sales || 0,
+      revenue: foundData?.revenue || 0,
+    };
+  });
 }
 
 function getDatesInRange(startDate, endDate) {
-  try {
-    const dateArray = [];
-    let currentDate = startDate;
-    while (currentDate <= endDate) {
-      dateArray.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return dateArray;
-  } catch (error) {
-    console.log("Error in getting dates in range:", error.message);
-    throw error;
+  const dates = [];
+  let current = new Date(startDate);
+
+  while (current <= endDate) {
+    dates.push(current.toISOString().slice(0, 10));
+    current.setUTCDate(current.getUTCDate() + 1);
   }
+
+  return dates;
 }

@@ -6,7 +6,6 @@ import LoadingSpinner from "./LoadingSpinner.jsx";
 import ProductCard from "./ProductCard.jsx";
 
 const PeopleAlsoBought = () => {
-  //TODO: Consider moving to store
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 

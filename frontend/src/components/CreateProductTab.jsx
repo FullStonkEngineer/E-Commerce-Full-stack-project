@@ -3,6 +3,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { PlusCircle, Upload, Loader } from "lucide-react";
 import { useProductStore } from "../stores/useProductStore.js";
+import { imageToBase64 } from "../utils/imageToBase64.js";
 import toast from "react-hot-toast";
 
 const categories = [
@@ -27,33 +28,38 @@ const CreateProductTab = () => {
     image: "",
   });
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setNewProduct((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const resetForm = () => {
+    setNewProduct({
+      name: "",
+      description: "",
+      price: "",
+      category: "",
+      image: "",
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log("awaiting product creation");
       await createProduct(newProduct);
-      console.log("product created");
-      setNewProduct({
-        name: "",
-        description: "",
-        price: "",
-        category: "",
-        image: "",
-      });
+      resetForm();
+      toast.success("Product created successfully!");
     } catch (error) {
       console.log(error);
       toast.error("Something went wrong");
     }
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewProduct({ ...newProduct, image: reader.result });
-      };
-      reader.readAsDataURL(file);
+      const base64 = await fileToBase64(file);
+      setNewProduct((prev) => ({ ...prev, image: base64 }));
     }
   };
 
@@ -81,9 +87,7 @@ const CreateProductTab = () => {
             id='name'
             name='name'
             value={newProduct.name}
-            onChange={(e) =>
-              setNewProduct({ ...newProduct, name: e.target.value })
-            }
+            onChange={handleChange}
             className='mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2
 						 px-3 text-white focus:outline-none focus:ring-2
 						focus:ring-emerald-500 focus:border-emerald-500'
@@ -103,9 +107,7 @@ const CreateProductTab = () => {
             id='description'
             name='description'
             value={newProduct.description}
-            onChange={(e) =>
-              setNewProduct({ ...newProduct, description: e.target.value })
-            }
+            onChange={handleChange}
             className='mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm
 						 py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 
 						 focus:border-emerald-500'
@@ -127,9 +129,7 @@ const CreateProductTab = () => {
             name='price'
             value={newProduct.price}
             step='0.01'
-            onChange={(e) =>
-              setNewProduct({ ...newProduct, price: e.target.value })
-            }
+            onChange={handleChange}
             className='mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm 
 						py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500
 						 focus:border-emerald-500'
@@ -149,9 +149,7 @@ const CreateProductTab = () => {
             type='text'
             id='category'
             value={newProduct.category}
-            onChange={(e) =>
-              setNewProduct({ ...newProduct, category: e.target.value })
-            }
+            onChange={handleChange}
             className='mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md
 						 shadow-sm py-2 px-3 text-white focus:outline-none 
 						 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500'

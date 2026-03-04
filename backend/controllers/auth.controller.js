@@ -5,41 +5,51 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const cookieOptions = (mA) => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: mA,
+});
+
 const generateTokens = (userId) => {
-  const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: "15m",
-  });
+  const accessTokenCookie = jwt.sign(
+    { userId },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: "15m",
+    },
+  );
 
-  const refreshToken = jwt.sign({ userId }, process.env.REFRESH_TOKEN_SECRET, {
-    expiresIn: "7d",
-  });
+  const refreshTokenCookie = jwt.sign(
+    { userId },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: "7d",
+    },
+  );
 
-  return { accessToken, refreshToken };
+  return { accessTokenCookie, refreshTokenCookie };
 };
 
-const storeRefreshToken = async (userId, refreshToken) => {
+const storeRefreshToken = async (userId, refreshTokenCookie) => {
   await redis.set(
     `refresh_token:${userId}`,
-    refreshToken,
+    refreshTokenCookie,
     "EX",
     7 * 24 * 60 * 60,
   );
 };
 
-const setCookies = (res, accessToken, refreshToken) => {
-  (res.cookie("accessToken", accessToken, {
-    httpOnly: true, // prevents XSS
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", // prevents CSRF
-    maxAge: 15 * 60 * 1000, // 15 mins
-  }),
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true, // prevents XSS
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict", // prevents CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    }));
+const setCookies = (res, accessTokenCookie, refreshTokenCookie) => {
+  res.cookie("accessToken", accessTokenCookie, cookieOptions(15 * 60 * 1000));
+  res.cookie(
+    "refreshToken",
+    refreshTokenCookie,
+    cookieOptions(7 * 24 * 60 * 60 * 1000),
+  );
 };
+
 export const signup = async (req, res) => {
   const { email, password, name } = req.body;
   try {
@@ -51,10 +61,10 @@ export const signup = async (req, res) => {
     const user = await User.create({ name, email, password });
 
     // Authentication
-    const { accessToken, refreshToken } = generateTokens(user._id);
-    await storeRefreshToken(user._id, refreshToken);
+    const { accessTokenCookie, refreshTokenCookie } = generateTokens(user._id);
+    await storeRefreshToken(user._id, refreshTokenCookie);
 
-    setCookies(res, accessToken, refreshToken);
+    setCookies(res, accessTokenCookie, refreshTokenCookie);
 
     res.status(201).json({
       user: {
@@ -66,8 +76,15 @@ export const signup = async (req, res) => {
       message: "User signed up successfully",
     });
   } catch (error) {
-    console.log("Signup error:", error.message);
-    res.status(500).json({ message: error.message });
+    console.error("Signup error:", error);
+
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email is already registered" });
+    }
+
+    res
+      .status(500)
+      .json({ message: "Unable to create account, please try again later" });
   }
 };
 
@@ -76,10 +93,12 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
-    if (user && (await user.compare(password))) {
-      const { accessToken, refreshToken } = generateTokens(user._id);
-      await storeRefreshToken(user._id, refreshToken);
-      setCookies(res, accessToken, refreshToken);
+    if (user && (await user.comparePassword(password))) {
+      const { accessTokenCookie, refreshTokenCookie } = generateTokens(
+        user._id,
+      );
+      await storeRefreshToken(user._id, refreshTokenCookie);
+      setCookies(res, accessTokenCookie, refreshTokenCookie);
 
       res.json({
         user: {
@@ -93,17 +112,22 @@ export const login = async (req, res) => {
       res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
-    console.log("Login error:", error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Signup error:", error);
+
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 export const logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
-    if (refreshToken) {
+    const refreshTokenCookie = req.cookies.refreshToken;
+    if (refreshTokenCookie) {
       const decoded = jwt.verify(
-        refreshToken,
+        refreshTokenCookie,
         process.env.REFRESH_TOKEN_SECRET,
       );
       await redis.del(`refresh_token:${decoded.userId}`);
@@ -113,45 +137,59 @@ export const logout = async (req, res) => {
     res.clearCookie("refreshToken");
     res.json({ message: "Logged out successfully" });
   } catch (error) {
-    console.log("Logout error:", error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Refresh token error:", error);
+
+    if (
+      error.name === "TokenExpiredError" ||
+      error.name === "JsonWebTokenError"
+    ) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
 export const refreshTokenController = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshTokenCookie = req.cookies.refreshToken;
 
-    if (!refreshToken) {
+    if (!refreshTokenCookie) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const decoded = jwt.verify(
+      refreshTokenCookie,
+      process.env.REFRESH_TOKEN_SECRET,
+    );
     const storedToken = await redis.get(`refresh_token:${decoded.userId}`);
 
-    if (storedToken !== refreshToken) {
+    if (storedToken !== refreshTokenCookie) {
       return res.status(401).json({
         message: "Unauthorized, Stored token is not equal to refresh token",
       });
     }
 
-    const accessToken = jwt.sign(
+    const accessTokenCookie = jwt.sign(
       { userId: decoded.userId },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: "15m" },
     );
 
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true, // prevents XSS
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict", // prevents CSRF
-      maxAge: 15 * 60 * 1000, // 15 mins
-    });
+    res.cookie("accessToken", accessTokenCookie, cookieOptions(15 * 60 * 1000));
 
     res.json({ message: "Token refreshed successfully" });
   } catch (error) {
-    console.log("Error in token refresh:", error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Refresh token error:", error);
+
+    if (
+      error.name === "TokenExpiredError" ||
+      error.name === "JsonWebTokenError"
+    ) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -159,7 +197,9 @@ export const getProfile = async (req, res) => {
   try {
     res.json(req.user);
   } catch (error) {
-    console.log("Error in getting profile:", error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error fetching profile:", error);
+    res
+      .status(500)
+      .json({ message: "Unable to fetch profile, please try again later" });
   }
 };

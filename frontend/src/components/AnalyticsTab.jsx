@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import axios from "../lib/axios";
 import { Users, Package, ShoppingCart, DollarSign } from "lucide-react";
+import AnalyticsCard from "./AnalyticsCard.jsx";
 import {
   LineChart,
   Line,
@@ -14,34 +15,44 @@ import {
 } from "recharts";
 
 const AnalyticsTab = () => {
-  const [analyticsData, setAnalyticsData] = useState({
-    users: 0,
-    products: 0,
-    totalSales: 0,
-    totalRevenue: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState(null);
   const [dailySalesData, setDailySalesData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAnalytics = async () => {
+    try {
+      const res = await axios.get("/analytics");
+      if (!res.data.analyticsData || !res.data.dailySalesData)
+        throw new Error("Malformed response");
+      setAnalyticsData(res.data.analyticsData);
+      setDailySalesData(res.data.dailySalesData);
+    } catch (err) {
+      setError(
+        err.response?.status === 403
+          ? "No permission"
+          : "Failed to load analytics",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchAnalyticsData = async () => {
-      try {
-        const response = await axios.get("/analytics");
-        setAnalyticsData(response.data.analyticsData);
-        setDailySalesData(response.data.dailySalesData);
-      } catch (error) {
-        console.error("Error fetching analytics data:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      fetchAnalytics();
     };
 
     fetchAnalyticsData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+  if (isLoading) return <div>Loading analytics…</div>;
+  if (error) return <div>{error}</div>;
 
   return (
     <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -108,23 +119,3 @@ const AnalyticsTab = () => {
   );
 };
 export default AnalyticsTab;
-
-const AnalyticsCard = ({ title, value, icon: Icon, color }) => (
-  <motion.div
-    className={`bg-gray-800 rounded-lg p-6 shadow-lg overflow-hidden relative ${color}`}
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5 }}
-  >
-    <div className='flex justify-between items-center'>
-      <div className='z-10'>
-        <p className='text-emerald-300 text-sm mb-1 font-semibold'>{title}</p>
-        <h3 className='text-white text-3xl font-bold'>{value}</h3>
-      </div>
-    </div>
-    <div className='absolute inset-0 bg-gradient-to-br from-emerald-600 to-emerald-900 opacity-30' />
-    <div className='absolute -bottom-4 -right-4 text-emerald-800 opacity-50'>
-      <Icon className='h-32 w-32' />
-    </div>
-  </motion.div>
-);

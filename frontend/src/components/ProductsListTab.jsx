@@ -6,6 +6,12 @@ import { useProductStore } from "../stores/useProductStore.js";
 const ProductsListTab = () => {
   const { products, deleteProduct, toggleFeatured } = useProductStore();
 
+  const handleDelete = (productId) => {
+    if (window.confirm("Are you sure you want to delete this product?")) {
+      deleteProduct(productId);
+    }
+  };
+
   console.log("products", products);
   return (
     <motion.div
@@ -92,7 +98,7 @@ const ProductsListTab = () => {
               </td>
               <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
                 <button
-                  onClick={() => deleteProduct(product._id)}
+                  onClick={() => handleDelete(product._id)}
                   className='text-red-400 hover:text-red-300'
                 >
                   <Trash className='h-5 w-5' />

@@ -5,6 +5,7 @@ import { useCartStore } from "../stores/useCartStore";
 const FeaturedProducts = ({ featuredProducts }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(4);
+  const { addToCart } = useCartStore();
 
   useEffect(() => {
     const handleResize = () => {
@@ -18,16 +19,15 @@ const FeaturedProducts = ({ featuredProducts }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const nextSlide = () => {
-    setCurrentIndex((prevIndex) => prevIndex + itemsPerPage);
-  };
-
-  const prevSlide = () => {
-    setCurrentIndex((prevIndex) => prevIndex - itemsPerPage);
-  };
+  const nextSlide = () => setCurrentIndex((prev) => prev + itemsPerPage);
+  const prevSlide = () => setCurrentIndex((prev) => prev - itemsPerPage);
 
   const isStartDisabled = currentIndex === 0;
   const isEndDisabled = currentIndex >= featuredProducts.length - itemsPerPage;
+
+  if (!featuredProducts || featuredProducts.length === 0) {
+    return null;
+  }
 
   return (
     <div className='py-12'>
@@ -43,7 +43,7 @@ const FeaturedProducts = ({ featuredProducts }) => {
                 transform: `translateX(-${currentIndex * (100 / itemsPerPage)}%)`,
               }}
             >
-              {featuredProducts?.map((product) => (
+              {featuredProducts.map((product) => (
                 <div
                   key={product._id}
                   className='w-full sm:w-1/2 lg:w-1/3 xl:w-1/4 flex-shrink-0 px-2'
@@ -65,8 +65,7 @@ const FeaturedProducts = ({ featuredProducts }) => {
                       </p>
                       <button
                         onClick={() => addToCart(product)}
-                        className='w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded transition-colors duration-300 
-												flex items-center justify-center'
+                        className='w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded flex items-center justify-center transition-colors duration-300'
                       >
                         <ShoppingCart className='w-5 h-5 mr-2' />
                         Add to Cart
@@ -88,7 +87,6 @@ const FeaturedProducts = ({ featuredProducts }) => {
           >
             <ChevronLeft className='w-6 h-6' />
           </button>
-
           <button
             onClick={nextSlide}
             disabled={isEndDisabled}
