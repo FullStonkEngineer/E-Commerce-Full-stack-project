@@ -1,9 +1,10 @@
-import { useCartStore } from "../stores/useCartStore";
+import { useCartStore } from "../../stores/useCartStore";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { MoveRight } from "lucide-react";
-import axios from "../lib/axios";
+import axios from "../../lib/axios";
 import { loadStripe } from "@stripe/stripe-js";
+import { slideUp } from "../../lib/animations.js";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -35,9 +36,7 @@ const OrderSummary = () => {
   return (
     <motion.div
       className='space-y-4 rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm sm:p-6'
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      {...slideUp(0.5)}
     >
       <p className='text-xl font-semibold text-emerald-400'>Order summary</p>
 

@@ -10,8 +10,8 @@ import CartPage from "./pages/CartPage.jsx";
 import PurchaseSuccessPage from "./pages/PurchaseSuccessPage.jsx";
 import PurchaseCancelPage from "./pages/PurchaseCancelPage.jsx";
 
-import Navbar from "./components/Navbar.jsx";
-import LoadingSpinner from "./components/LoadingSpinner.jsx";
+import Navbar from "./components/layout/Navbar.jsx";
+import LoadingSpinner from "./components/layout/LoadingSpinner.jsx";
 import { Toaster } from "react-hot-toast";
 import { useUserStore } from "./stores/useUserStore.js";
 import { useEffect } from "react";

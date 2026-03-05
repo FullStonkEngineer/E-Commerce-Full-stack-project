@@ -1,10 +1,9 @@
 import { motion } from "framer-motion";
+import { slideUp } from "../../../lib/animations.js";
 const AnalyticsCard = ({ title, value, icon: Icon, color }) => (
   <motion.div
     className={`bg-gray-800 rounded-lg p-6 shadow-lg overflow-hidden relative ${color}`}
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5 }}
+    {...slideUp(0.5)}
   >
     <div className='flex justify-between items-center'>
       <div className='z-10'>

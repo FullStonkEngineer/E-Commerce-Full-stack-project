@@ -1,16 +1,21 @@
-# React + Vite
+## Styling Approach
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project uses Tailwind CSS with a component-driven abstraction strategy.
 
-Currently, two official plugins are available:
+Early development favored inline utility classes for rapid iteration. As the UI grew,
+repeated layout and form patterns were extracted into reusable UI primitives
+(e.g. FormInput, FormCard, PageContainer).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This preserves Tailwind’s benefits:
 
-## React Compiler
+- no global CSS conflicts
+- predictable styling
+- fast iteration
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+while maintaining:
 
-## Expanding the ESLint configuration
+- readable JSX
+- low cognitive overhead
+- scalable structure
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Conditional styling is handled via `clsx` to keep logic separate from markup.
