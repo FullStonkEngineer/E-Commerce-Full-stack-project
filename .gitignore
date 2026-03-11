@@ -13,6 +13,8 @@ dist-ssr
 *.local
 
 .env
+README.md
+fullstack_ecommerce_readme.md
 
 # Editor directories and files
 .vscode/*

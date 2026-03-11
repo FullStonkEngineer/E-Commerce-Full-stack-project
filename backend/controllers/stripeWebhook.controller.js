@@ -3,13 +3,17 @@ import Order from "../models/order.model.js";
 import Coupon from "../models/coupon.model.js";
 import Product from "../models/product.model.js";
 
-// re-fetch products in the webhook to guard against tampered metadata and deleted products,
-// while still trusting Stripe for the final amount
+/**
+ * Stripe webhook handler for checkout session completions.
+ * Ensures idempotency, validates products, and creates orders.
+ *
+ */
 export const stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
 
   let event;
   try {
+    // Verify webhook signature to prevent fraudulent requests
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
@@ -20,6 +24,7 @@ export const stripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // Only handle completed checkout sessions
   if (event.type !== "checkout.session.completed") {
     return res.status(200).json({ received: true });
   }
@@ -27,9 +32,7 @@ export const stripeWebhook = async (req, res) => {
   const session = event.data.object;
 
   try {
-    /**
-     * 1️⃣ Idempotency guard
-     */
+    // Idempotency guard: Avoid creating duplicate orders if Stripe retries webhook
     const existingOrder = await Order.findOne({
       stripeSessionId: session.id,
     });
@@ -38,27 +41,23 @@ export const stripeWebhook = async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    /**
-     * 2️⃣ Parse metadata
-     */
+    // Parse metadata: Products array and user info from session
     const products = JSON.parse(session.metadata.products || "[]");
 
     if (!products.length) {
       throw new Error("No products found in session metadata");
     }
 
-    /**
-     * 3️⃣ Fetch products from DB (authoritative pricing & existence)
-     */
+    // Fetch products from DB (authoritative source)
+    // Ensures correct pricing & prevents deleted products from being charged incorrectly
     const dbProducts = await Product.find({
       _id: { $in: products.map((p) => p.id) },
     });
 
     const productMap = new Map(dbProducts.map((p) => [p._id.toString(), p]));
 
-    /**
-     * 4️⃣ Build order line items using DB products
-     */
+    // Build order line items using DB products
+    // Quantity comes from Stripe metadata, price comes from DB
     const orderProducts = products.map((p) => {
       const product = productMap.get(p.id);
 
@@ -69,25 +68,21 @@ export const stripeWebhook = async (req, res) => {
       return {
         product: product._id,
         quantity: p.quantity,
-        price: product.price, // DB price wins
+        price: product.price,
       };
     });
 
-    /**
-     * 5️⃣ Create order (Stripe total is source of truth)
-     */
+    // Create order: Stripe total is source of truth to prevent client tampering
     const newOrder = new Order({
       user: session.metadata.userId,
       products: orderProducts,
-      totalAmount: session.amount_total / 100,
+      totalAmount: session.amount_total / 100, // Convert cents to dollars
       stripeSessionId: session.id,
     });
 
     await newOrder.save();
 
-    /**
-     * 6️⃣ Deactivate coupon AFTER successful payment
-     */
+    // Deactivate coupon after successful payment
     if (session.metadata.couponCode) {
       await Coupon.findOneAndUpdate(
         {

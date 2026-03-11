@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { PlusCircle, Upload, Loader } from "lucide-react";
 import toast from "react-hot-toast";
+import { useState } from "react";
 
 import { useProductStore } from "../../stores/useProductStore";
 import { fileToBase64 } from "../../lib/imageToBase64";

@@ -5,6 +5,7 @@ import { MoveRight } from "lucide-react";
 import axios from "../../lib/axios";
 import { loadStripe } from "@stripe/stripe-js";
 import { slideUp } from "../../lib/animations.js";
+import { toast } from "react-hot-toast";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 

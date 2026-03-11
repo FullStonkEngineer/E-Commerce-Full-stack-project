@@ -1,7 +1,15 @@
 import axios from "axios";
-import { useUserStore } from "../stores/user.store.js";
+import { useUserStore } from "../stores/useUserStore.js";
 import { runSingleRefresh } from "./refreshManager.js";
 
+/**
+ * Central Axios instance used across the frontend.
+ *
+ * Responsibilities:
+ * - Configure API base URL depending on environment
+ * - Send cookies automatically (JWT stored in cookies)
+ * - Handle automatic token refresh on 401 responses
+ */
 const axiosInstance = axios.create({
   baseURL:
     import.meta.env.MODE === "development"
@@ -10,6 +18,15 @@ const axiosInstance = axios.create({
   withCredentials: true,
 });
 
+/**
+ * Response interceptor for handling expired access tokens.
+ *
+ * Flow:
+ * 1. If a request returns 401, attempt to refresh the access token.
+ * 2. Only retry once to prevent infinite loops.
+ * 3. If refresh succeeds, retry the original request.
+ * 4. If refresh fails, log the user out.
+ */
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -23,8 +40,10 @@ axiosInstance.interceptors.response.use(
       try {
         await runSingleRefresh(refreshToken);
 
+        // Retry original request after successful refresh
         return axiosInstance(originalRequest);
       } catch {
+        // If refresh fails, clear user session
         logout();
         return Promise.reject(error);
       }

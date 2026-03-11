@@ -1,9 +1,9 @@
 import React from "react";
 import { useCartStore } from "../../stores/useCartStore";
 
-import CartItem from "../domain/CartItem";
-import EmptyCartUI from "../domain/EmptyCartUI";
-import PeopleAlsoBought from "../domain/PeopleAlsoBought";
+import CartItem from "./CartItem";
+import EmptyCartUI from "./EmptyCartUI";
+import PeopleAlsoBought from "./PeopleAlsoBought";
 
 const CartItemsSection = () => {
   const { cart } = useCartStore();

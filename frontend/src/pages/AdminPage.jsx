@@ -24,7 +24,6 @@ const AdminPage = () => {
   useEffect(() => {
     fetchAllProducts();
   }, [fetchAllProducts]);
-
   return (
     <PageContainer>
       <AdminLayout title='Admin Dashboard'>
