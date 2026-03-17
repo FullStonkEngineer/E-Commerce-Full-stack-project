@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import path from "path";
 import cors from "cors";
+import fs from "fs";
 
 import authRoutes from "./routes/auth.route.js";
 import productRoutes from "./routes/product.route.js";
@@ -41,10 +42,19 @@ app.use("/api/analytics", analyticsRoutes);
 const frontendDistPath = path.join(__dirname, "../frontend/dist");
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(frontendDistPath)));
+  if (!fs.existsSync(frontendDistPath)) {
+    console.error("Frontend dist folder not found:", frontendDistPath);
+  }
+
+  app.use(express.static(frontendDistPath));
 
   app.get("*", (req, res) => {
-    res.sendFile(path.resolve(frontendDistPath, "index.html"));
+    const indexPath = path.join(frontendDistPath, "index.html");
+    if (!fs.existsSync(indexPath)) {
+      console.error("index.html not found in frontend dist:", indexPath);
+      return res.status(500).send("index.html not found");
+    }
+    res.sendFile(indexPath);
   });
 }
 
