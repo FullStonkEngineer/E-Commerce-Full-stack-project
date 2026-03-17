@@ -4,7 +4,7 @@ import { slideUp } from "../../lib/animations";
 import { useCartStore } from "../../stores/useCartStore";
 
 import CartItemsSection from "./CartItemsSection";
-import CartSidebar from "./CartSidebar";
+import CartSidebar from "./CartSideBar.jsx";
 
 const CartLayout = () => {
   const { cart } = useCartStore();
