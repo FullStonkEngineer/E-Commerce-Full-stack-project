@@ -39,7 +39,10 @@ app.use("/api/coupons", couponRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/analytics", analyticsRoutes);
 
-const frontendDistPath = path.join(__dirname, "../frontend/dist");
+import path from "path";
+import fs from "fs";
+
+const frontendDistPath = path.join(process.cwd(), "frontend", "dist"); // <-- use process.cwd()
 
 if (process.env.NODE_ENV === "production") {
   if (!fs.existsSync(frontendDistPath)) {
